@@ -12,6 +12,149 @@ Project Silence implements three core components on Solana:
 
 All confidential computations are executed using Arcium's Multi-Party Execution (MXE) network, ensuring data privacy while maintaining on-chain verifiability.
 
+## Business Use Cases & Problems Solved
+
+### Problems in Current Systems
+
+#### 1. **AI Model Privacy & Trust Issues**
+
+**Problem:**
+- AI model providers cannot verify that their proprietary models are executed correctly without exposing model weights
+- Users cannot trust that their sensitive prompts (financial data, medical records, personal information) remain private
+- No verifiable proof that inference was performed in a trusted execution environment (TEE)
+- Model owners have no on-chain record of usage for billing and analytics
+
+**Solution:**
+Project Silence enables **privacy-preserving AI inference** where:
+- Model weights remain encrypted during execution via Arcium's MXE network
+- User prompts are encrypted and never exposed to model providers
+- TEE attestation provides cryptographic proof of correct execution
+- On-chain metrics track usage without revealing sensitive data
+
+**Use Cases:**
+- **Healthcare AI**: Process patient data for diagnosis without exposing PHI
+- **Financial AI**: Analyze trading strategies without revealing proprietary algorithms
+- **Legal AI**: Review confidential documents with verifiable privacy guarantees
+- **Enterprise AI**: Deploy proprietary models with usage tracking and billing
+
+#### 2. **Cross-Chain Bridge Privacy & Trust Gaps**
+
+**Problem:**
+- Traditional bridges expose transaction amounts, creating privacy risks
+- Users cannot verify that bridge operators execute transfers correctly
+- No reputation system for bridge operators (solvers)
+- High fees and slow settlement times
+- Centralized bridge operators create single points of failure
+
+**Solution:**
+Silence Bridge provides an **intent-based, privacy-preserving cross-chain bridge** where:
+- Transaction amounts are encrypted using zero-knowledge proofs
+- Decentralized solver network with reputation scoring
+- Automatic settlement with verifiable execution proofs
+- Shielded transfers hide amounts and recipients
+- Intent-based model eliminates manual bridging steps
+
+**Use Cases:**
+- **Privacy-Conscious DeFi**: Transfer assets between chains without exposing amounts
+- **Institutional Trading**: Large cross-chain transfers with privacy protection
+- **Multi-Chain Portfolios**: Seamless asset movement across Solana, NEAR, and Zcash
+- **Privacy-First Payments**: Cross-chain payments with recipient privacy
+
+#### 3. **Data Privacy in On-Chain Systems**
+
+**Problem:**
+- Blockchain transparency conflicts with privacy requirements
+- Sensitive business data cannot be processed on-chain
+- No way to verify computations without revealing inputs
+- Regulatory compliance (GDPR, HIPAA) difficult on public blockchains
+
+**Solution:**
+Arcium's confidential computing enables **private on-chain computation**:
+- Encrypted data processing in TEE enclaves
+- Verifiable computation without data exposure
+- Privacy proofs enable auditability without disclosure
+- Compliance-friendly architecture for regulated industries
+
+### How Project Silence Works
+
+#### Architecture Overview
+
+Project Silence combines three key technologies:
+
+1. **Arcium MXE Network** - Multi-party execution network that processes encrypted data in TEE enclaves
+2. **Solana Blockchain** - Fast, low-cost execution layer for on-chain state management
+3. **Zero-Knowledge Proofs** - Cryptographic proofs that verify computations without revealing inputs
+
+#### Solution Flow
+
+**AI Inference Flow:**
+```
+1. User encrypts prompt → Encrypted prompt hash stored on-chain
+2. Inference request created → Payment escrowed, model metadata verified
+3. Arcium MXE processes → Encrypted computation in TEE enclaves
+4. Result encrypted → Only user can decrypt with their key
+5. Attestation verified → Cryptographic proof of correct execution
+6. Result stored → Encrypted result hash on-chain, metrics updated
+```
+
+**Cross-Chain Bridge Flow:**
+```
+1. User creates intent → Encrypted amount commitment, recipient hash
+2. Funds escrowed → SOL locked in intent vault on Solana
+3. Solver matches → Reputation-based matching, stake verification
+4. Cross-chain execution → Solver executes transfer on destination chain
+5. Execution proof → Destination transaction hash verified
+6. Settlement → Automatic reward distribution, protocol fees collected
+```
+
+#### Key Innovations
+
+**1. Encrypted Computation**
+- All sensitive data processed in encrypted form
+- Arcium MXE ensures data never leaves TEE enclaves unencrypted
+- Results encrypted for intended recipients only
+
+**2. Verifiable Privacy**
+- Zero-knowledge proofs verify computations without revealing inputs
+- TEE attestation provides cryptographic guarantees
+- On-chain audit trail without data exposure
+
+**3. Decentralized Trust**
+- Solver network with reputation scoring
+- Staking mechanism ensures honest behavior
+- Automatic settlement eliminates manual intervention
+
+**4. Intent-Based Architecture**
+- Users specify desired outcome, not execution steps
+- Solvers compete to provide best execution
+- Automatic matching and settlement
+
+### Business Value
+
+**For AI Model Providers:**
+- ✅ Protect proprietary model weights
+- ✅ Verify correct execution without exposing models
+- ✅ On-chain usage tracking and billing
+- ✅ Compliance with data privacy regulations
+
+**For AI Users:**
+- ✅ Process sensitive data with privacy guarantees
+- ✅ Verify inference correctness via attestation
+- ✅ Transparent pricing and usage metrics
+- ✅ No trust required in model providers
+
+**For Cross-Chain Users:**
+- ✅ Privacy-preserving transfers
+- ✅ Lower fees through solver competition
+- ✅ Faster settlement with automatic execution
+- ✅ No single point of failure
+
+**For Bridge Operators (Solvers):**
+- ✅ Earn rewards for providing liquidity
+- ✅ Build reputation through successful executions
+- ✅ Staking mechanism aligns incentives
+- ✅ Transparent fee structure
+
 ## Architecture
 
 ```
@@ -303,6 +446,34 @@ await program.methods
 |---------|------------|
 | Localnet | `2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2` |
 | Devnet | `2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2` |
+
+## Deployment Details
+
+### Devnet Deployment
+
+The program is successfully deployed to Solana Devnet (Arcium Testnet).
+
+| Detail | Value |
+|--------|-------|
+| **Program ID** | `2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2` |
+| **Network** | Solana Devnet |
+| **IDL Account** | `82n7DhRek69QLAqX7shTTPekZpDwg8j9hRBd7AgmhtrK` |
+| **Upgrade Authority** | `HPJqinsnuTFubySxd4kzmom7LpLZDMGd7weqjxvHkvAa` |
+| **Program Data Address** | `Ca2MTfsgyYwSuT76jaV2umKJzn6DN6pzbVJsa8eJVxEJ` |
+| **Explorer** | [View on Solana Explorer](https://explorer.solana.com/address/2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2/idl?cluster=devnet) |
+| **IDL Explorer** | [View IDL](https://explorer.solana.com/address/2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2/idl?cluster=devnet) |
+
+### Deployment Status
+
+✅ **Deployed** - Program is live on devnet  
+✅ **IDL Published** - Interface definition available on-chain  
+✅ **Arcium Encrypted Instructions** - Built and ready for initialization
+
+### Next Steps
+
+1. Initialize computation definitions using the TypeScript client
+2. Run integration tests against devnet
+3. Initialize bridge configuration via `initialize_bridge` instruction
 
 ## Environment Variables
 

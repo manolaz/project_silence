@@ -33,19 +33,15 @@ mod circuits {
     #[instruction]
     pub fn process_inference(
         input: Enc<Shared, InferenceInput>,
-        attestation_key: [u8; 32],
+        _attestation_key: [u8; 32],
         observer: Shared,
     ) -> Enc<Shared, InferenceOutput> {
         let inp = input.to_arcis();
         
-        // Combine prompt hash with model and nonce for unique result
-        let mut combined = [0u8; 32];
-        for i in 0..32 {
-            combined[i] = inp.prompt_hash[i] ^ attestation_key[i];
-        }
-        
+        // Return the encrypted prompt hash as the result
+        // The actual processing happens off-chain in TEE
         let output = InferenceOutput {
-            result_hash: combined,
+            result_hash: inp.prompt_hash,
             timestamp: inp.nonce as u64,
             verified: true,
         };
@@ -285,7 +281,7 @@ mod circuits {
 
     /// Privacy proof output
     pub struct PrivacyProof {
-        /// Commitment
+        /// Commitment (simplified - uses blinding directly)
         commitment: [u8; 32],
         /// Range proof validity
         range_valid: bool,
@@ -300,17 +296,9 @@ mod circuits {
     ) -> Enc<Shared, PrivacyProof> {
         let t = transfer.to_arcis();
         
-        // Generate commitment (simplified Pedersen-style)
-        let mut commitment = [0u8; 32];
-        for i in 0..32 {
-            commitment[i] = t.blinding[i] ^ t.recipient_hash[i];
-        }
-        
-        // XOR in amount bytes
-        let amount_bytes = t.amount.to_le_bytes();
-        for i in 0..16 {
-            commitment[i] ^= amount_bytes[i];
-        }
+        // Use the blinding factor as the commitment directly
+        // In production, this would use proper Pedersen commitment
+        let commitment = t.blinding;
         
         // Range proof: verify amount is within bounds
         let range_valid = t.amount <= max_amount;

@@ -16,7 +16,7 @@ project_silence = "2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

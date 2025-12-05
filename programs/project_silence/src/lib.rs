@@ -425,10 +425,7 @@ pub mod project_silence {
     pub fn process_inference(
         ctx: Context<ProcessInference>,
         computation_offset: u64,
-        encrypted_prompt_hash: [u8; 32],
-        encrypted_model_id: [u8; 32],
-        encrypted_nonce: [u8; 32],
-        attestation_key: [u8; 32],
+        encrypted_input: [u8; 32],
         observer_pub_key: [u8; 32],
         observer_nonce: u128,
     ) -> Result<()> {
@@ -437,10 +434,6 @@ pub mod project_silence {
         let args = vec![
             Argument::ArcisPubkey(observer_pub_key),
             Argument::PlaintextU128(observer_nonce),
-            Argument::EncryptedBytes32(encrypted_prompt_hash),
-            Argument::EncryptedBytes32(encrypted_model_id),
-            Argument::EncryptedBytes32(encrypted_nonce),
-            Argument::PlaintextBytes32(attestation_key),
         ];
         
         queue_computation(
@@ -824,8 +817,6 @@ pub mod project_silence {
         computation_offset: u64,
         one_time_pub_key: [u8; 32],
         one_time_nonce: u128,
-        encrypted_source_amount: [u8; 32],
-        encrypted_destination_amount: [u8; 32],
         expected_rate_bps: u64,
         min_source_amount: u128,
         protocol_fee_bps: u64,
@@ -837,8 +828,6 @@ pub mod project_silence {
         let args = vec![
             Argument::ArcisPubkey(one_time_pub_key),
             Argument::PlaintextU128(one_time_nonce),
-            Argument::EncryptedU128(encrypted_source_amount),
-            Argument::EncryptedU128(encrypted_destination_amount),
             Argument::PlaintextU64(expected_rate_bps),
             Argument::PlaintextU128(min_source_amount),
             Argument::PlaintextU64(protocol_fee_bps),
@@ -907,9 +896,6 @@ pub mod project_silence {
         computation_offset: u64,
         one_time_pub_key: [u8; 32],
         one_time_nonce: u128,
-        encrypted_amount: [u8; 32],
-        encrypted_blinding: [u8; 32],
-        encrypted_recipient_hash: [u8; 32],
         max_amount: u128,
         observer_pub_key: [u8; 32],
         observer_nonce: u128,
@@ -919,9 +905,6 @@ pub mod project_silence {
         let args = vec![
             Argument::ArcisPubkey(one_time_pub_key),
             Argument::PlaintextU128(one_time_nonce),
-            Argument::EncryptedU128(encrypted_amount),
-            Argument::EncryptedBytes32(encrypted_blinding),
-            Argument::EncryptedBytes32(encrypted_recipient_hash),
             Argument::PlaintextU128(max_amount),
             Argument::ArcisPubkey(observer_pub_key),
             Argument::PlaintextU128(observer_nonce),

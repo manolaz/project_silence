@@ -1,6 +1,8 @@
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, LookupMap, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
+use near_sdk::schemars::JsonSchema;
 use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, AccountId, Promise, PanicOnDefault, BorshStorageKey, NearToken};
 
@@ -18,7 +20,9 @@ enum StorageKey {
 
 /// Supported blockchain networks
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(JsonSchema))]
 #[serde(crate = "near_sdk::serde")]
+#[cfg_attr(not(target_arch = "wasm32"), schemars(crate = "near_sdk::schemars"))]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum Chain {
     Near,
@@ -28,7 +32,9 @@ pub enum Chain {
 
 /// Intent status lifecycle
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(JsonSchema))]
 #[serde(crate = "near_sdk::serde")]
+#[cfg_attr(not(target_arch = "wasm32"), schemars(crate = "near_sdk::schemars"))]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum IntentStatus {
     Created,
@@ -43,7 +49,9 @@ pub enum IntentStatus {
 
 /// Crosschain transfer intent
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(JsonSchema))]
 #[serde(crate = "near_sdk::serde")]
+#[cfg_attr(not(target_arch = "wasm32"), schemars(crate = "near_sdk::schemars"))]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Intent {
     pub intent_id: String,
@@ -68,7 +76,9 @@ pub struct Intent {
 
 /// Solver entity
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(JsonSchema))]
 #[serde(crate = "near_sdk::serde")]
+#[cfg_attr(not(target_arch = "wasm32"), schemars(crate = "near_sdk::schemars"))]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Solver {
     pub solver_id: AccountId,

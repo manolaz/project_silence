@@ -175,7 +175,7 @@ Add to your `.env.local`:
 ```env
 NEXT_PUBLIC_NEAR_MODEL_REGISTRY_CONTRACT=your-model-registry.testnet
 NEXT_PUBLIC_NEAR_INFERENCE_CONTRACT=your-inference-service.testnet
-NEXT_PUBLIC_SILENCE_BRIDGE_CONTRACT=silence-bridge.testnet
+NEXT_PUBLIC_SILENCE_BRIDGE_CONTRACT=amoca.testnet
 NEXT_PUBLIC_NEAR_NETWORK_ID=testnet
 NEXT_PUBLIC_NEAR_RPC_URL=https://rpc.testnet.near.org
 NEXT_PUBLIC_NEAR_WALLET_URL=https://wallet.testnet.near.org
@@ -313,3 +313,50 @@ await silenceBridgeContract.registerSolver(
 - Only matched solver can execute or fail an intent
 - Settlement is automatic and trustless
 
+## Deployment Details
+
+### NEAR Testnet Deployment
+
+The Silence Bridge contract is successfully deployed to NEAR Testnet.
+
+| Detail | Value |
+|--------|-------|
+| **Contract Account** | `amoca.testnet` |
+| **Network** | NEAR Testnet |
+| **Code Hash** | `4TFKto9iPBhHZvEqi9MDqgCpUvTQuitMmFofjoMgDw6g` |
+| **Contract Locked** | No |
+| **Balance** | 11.998756 Ⓝ |
+| **Explorer** | [View on NearBlocks](https://testnet.nearblocks.io/address/amoca.testnet?tab=contract) |
+
+### Deployment Status
+
+✅ **Deployed** - Silence Bridge contract is live on testnet  
+✅ **Contract Verified** - Code hash available for verification
+
+### Usage Example
+
+```typescript
+import { silenceBridgeContract } from "@/lib/silence-bridge-contract"
+
+// Connect to deployed contract
+const contract = silenceBridgeContract("amoca.testnet")
+
+// Create a cross-chain intent
+const intent = await contract.createIntent({
+  destinationChain: "solana",
+  destinationAmount: "1000000000", // 1 SOL (in lamports)
+  destinationToken: "SOL",
+  recipient: "RecipientSolanaAddress...",
+  isShielded: false,
+  ttlSeconds: 3600
+}, "1000000000000000000000000") // 1 NEAR deposit
+
+// Get intent status
+const intentStatus = await contract.getIntent(intent.intentId)
+
+// Register as a solver
+await contract.registerSolver(
+  ["Near", "Solana", "Zcash"], // supported chains
+  "1000000000000000000000000" // 1 NEAR stake
+)
+```

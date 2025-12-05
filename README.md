@@ -449,7 +449,7 @@ await program.methods
 
 ## Deployment Details
 
-### Devnet Deployment
+### Solana Devnet Deployment
 
 The program is successfully deployed to Solana Devnet (Arcium Testnet).
 
@@ -463,17 +463,37 @@ The program is successfully deployed to Solana Devnet (Arcium Testnet).
 | **Explorer** | [View on Solana Explorer](https://explorer.solana.com/address/2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2/idl?cluster=devnet) |
 | **IDL Explorer** | [View IDL](https://explorer.solana.com/address/2oFwMgL8qEUN14w6DhJ4jdbccG1FFrosKqH8CVjiN1i2/idl?cluster=devnet) |
 
+### NEAR Testnet Deployment
+
+The Silence Bridge contract is successfully deployed to NEAR Testnet.
+
+| Detail | Value |
+|--------|-------|
+| **Contract Account** | `amoca.testnet` |
+| **Network** | NEAR Testnet |
+| **Code Hash** | `4TFKto9iPBhHZvEqi9MDqgCpUvTQuitMmFofjoMgDw6g` |
+| **Contract Locked** | No |
+| **Balance** | 11.998756 Ⓝ |
+| **Explorer** | [View on NearBlocks](https://testnet.nearblocks.io/address/amoca.testnet?tab=contract) |
+
 ### Deployment Status
 
+**Solana:**
 ✅ **Deployed** - Program is live on devnet  
 ✅ **IDL Published** - Interface definition available on-chain  
 ✅ **Arcium Encrypted Instructions** - Built and ready for initialization
+
+**NEAR:**
+✅ **Deployed** - Silence Bridge contract is live on testnet  
+✅ **Contract Verified** - Code hash available for verification
 
 ### Next Steps
 
 1. Initialize computation definitions using the TypeScript client
 2. Run integration tests against devnet
-3. Initialize bridge configuration via `initialize_bridge` instruction
+3. Initialize bridge configuration via `initialize_bridge` instruction (Solana)
+4. Initialize bridge configuration on NEAR contract
+5. Test cross-chain intent creation and execution between Solana and NEAR
 
 ## Environment Variables
 

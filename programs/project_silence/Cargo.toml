@@ -1,7 +1,7 @@
 [package]
 name = "project_silence"
 version = "0.1.0"
-description = "Created with Arcium & Anchor"
+description = "Project Silence - Privacy-preserving AI & Cross-chain Bridge on Solana with Arcium"
 edition = "2021"
 
 [lib]
@@ -14,10 +14,16 @@ cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "arcium-anchor/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
 
 [dependencies]
-anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
-arcium-client = { default-features = false, version = "0.3.0" }
-arcium-macros = "0.3.0"
-arcium-anchor = "0.3.0"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+arcium-client = { version = "0.4.0", default-features = false }
+arcium-macros = "0.4.0"
+arcium-anchor = "0.4.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

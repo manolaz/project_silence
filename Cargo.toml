@@ -1,5 +1,11 @@
 [workspace]
 members = ["programs/*", "encrypted-ixs"]
+exclude = [
+    "silence-near-contracts/near-ai-model-registry",
+    "silence-near-contracts/near-ai-inference",
+    "silence-near-contracts/near-philanthropy-agent",
+    "silence-near-contracts/silence-bridge"
+]
 resolver = "2"
 
 [profile.release]

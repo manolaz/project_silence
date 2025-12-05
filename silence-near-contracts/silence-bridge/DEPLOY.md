@@ -2,127 +2,144 @@
 
 ## Prerequisites
 
-1. **NEAR CLI installed**: `npm install -g near-cli`
-2. **Rust toolchain**: For building the contract
-3. **NEAR Testnet account**: You need a NEAR testnet account to deploy
+1. **Docker installed and running** - Required for reproducible WASM builds
+2. **NEAR CLI installed**: `npm install -g near-cli-rs`
+3. **NEAR Testnet account**: Either existing or will be created via faucet
 
-## Step 1: Build the Contract
+## Building the Contract
 
-The contract is already built, but if you need to rebuild:
+### Important: Use Docker for Reproducible Builds
+
+Due to WASM compatibility requirements with NEAR VM, contracts must be built using Docker to ensure proper WASM format. Local builds with newer Rust versions (1.87+) produce WASM that is incompatible with the NEAR protocol.
 
 ```bash
-cd contracts/silence-bridge
-cargo build --target wasm32-unknown-unknown --release
+cd silence-near-contracts/silence-bridge
+
+# Build using Docker (recommended)
+./docker-build.sh
+
+# Or manually:
+docker run --rm \
+  -v "$(pwd)":/host \
+  -w /host \
+  nearprotocol/contract-builder:latest \
+  cargo build --target wasm32-unknown-unknown --release
 ```
 
-The WASM file will be at:
-`target/wasm32-unknown-unknown/release/silence_bridge.wasm`
+## Deployment
 
-## Step 2: Create Deployment Account
-
-You have two options:
-
-### Option A: Create via Faucet (Recommended for testnet)
+### Option 1: Use Deployment Script
 
 ```bash
-near account create-account sponsor-by-faucet-service silence-bridge.testnet autogenerate-new-keypair save-to-keychain
+./deploy-testnet.sh <account-id> [owner-id] [min-stake] [fee-bps]
+
+# Example:
+./deploy-testnet.sh silence-bridge.testnet
 ```
 
-This will:
-- Create the account `silence-bridge.testnet`
-- Generate a keypair automatically
-- Save credentials to your keychain
-- Fund the account via the faucet service
+### Option 2: Manual Deployment
 
-### Option B: Create as Subaccount
-
-If you have an existing account (e.g., `your-account.testnet`), create a subaccount:
+#### Step 1: Create Account (if needed)
 
 ```bash
-near account create-account fund-myself silence-bridge.your-account.testnet autogenerate-new-keypair save-to-keychain
+near account create-account sponsor-by-faucet-service silence-bridge.testnet \
+  autogenerate-new-keypair save-to-legacy-keychain network-config testnet
 ```
 
-Replace `your-account` with your actual NEAR testnet account name.
-
-## Step 3: Deploy the Contract
-
-### Using the Deployment Script
+#### Step 2: Deploy Contract
 
 ```bash
-cd contracts/silence-bridge
-./deploy.sh silence-bridge.testnet your-account.testnet
+near contract deploy silence-bridge.testnet \
+  use-file target/wasm32-unknown-unknown/release/silence_bridge_stripped.wasm \
+  with-init-call new \
+  json-args '{"owner": "silence-bridge.testnet", "min_solver_stake": "1000000000000000000000000", "protocol_fee_bps": 50}' \
+  prepaid-gas '100.0 Tgas' \
+  attached-deposit '0 NEAR' \
+  network-config testnet \
+  sign-with-keychain send
 ```
 
-Replace:
-- `silence-bridge.testnet` with your contract account ID
-- `your-account.testnet` with the owner account ID
+### Initialization Parameters
 
-### Manual Deployment
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `owner` | AccountId | Contract owner (can call admin methods) |
+| `min_solver_stake` | U128 (string) | Minimum stake for solvers in yoctoNEAR |
+| `protocol_fee_bps` | u32 | Protocol fee in basis points (50 = 0.5%, max 1000 = 10%) |
 
-```bash
-cd contracts/silence-bridge
-
-near deploy \
-  --wasm-file target/wasm32-unknown-unknown/release/silence_bridge.wasm \
-  --init-function new \
-  --init-args '{
-    "owner_id": "your-account.testnet",
-    "min_solver_stake": "1000000000000000000000000",
-    "protocol_fee_bps": 50
-  }' \
-  --network-id testnet \
-  silence-bridge.testnet
-```
-
-**Parameters:**
-- `owner_id`: The account that will own the contract (can execute admin functions)
-- `min_solver_stake`: Minimum stake required for solvers (in yoctoNEAR)
-  - `1000000000000000000000000` = 1 NEAR
-- `protocol_fee_bps`: Protocol fee in basis points
-  - `50` = 0.5%
-  - `100` = 1%
-  - Maximum: `1000` (10%)
-
-## Step 4: Verify Deployment
-
-Check the contract was deployed:
+## Verification
 
 ```bash
+# Check contract stats
 near view silence-bridge.testnet get_stats --network-id testnet
+
+# Expected output:
+{
+  "total_intents": 0,
+  "total_solvers": 0,
+  "active_solvers": 0,
+  "total_volume": "0",
+  "protocol_fee_bps": 50
+}
 ```
 
-You should see contract statistics including total intents, solvers, and volume.
+## Post-Deployment
 
-## Step 5: Update Environment Variables
+### 1. Register a Solver
+
+```bash
+near call silence-bridge.testnet register_solver \
+  '{"supported_chains": ["Near", "Solana"]}' \
+  --accountId your-solver.testnet \
+  --deposit 1 \
+  --network-id testnet
+```
+
+### 2. Create an Intent
+
+```bash
+near call silence-bridge.testnet create_intent \
+  '{
+    "intent_id": "intent-001",
+    "destination_chain": "Solana",
+    "destination_amount": "1000000000",
+    "destination_token": "SOL",
+    "recipient": "SolanaRecipientAddress...",
+    "is_shielded": false,
+    "ttl_seconds": 3600
+  }' \
+  --accountId your-account.testnet \
+  --deposit 1 \
+  --network-id testnet
+```
+
+## Environment Variables
 
 Add to your `.env.local`:
 
 ```env
 NEXT_PUBLIC_SILENCE_BRIDGE_CONTRACT=silence-bridge.testnet
+NEXT_PUBLIC_NEAR_NETWORK_ID=testnet
+NEXT_PUBLIC_NEAR_RPC_URL=https://rpc.testnet.near.org
 ```
 
 ## Troubleshooting
 
+### CompilationError(PrepareError(Deserialization))
+
+This error indicates the WASM was compiled with an incompatible Rust version. Solution:
+- Use Docker builds with `./docker-build.sh`
+- Or use Rust 1.86.0 or earlier
+
 ### Account Already Exists
-If the account already exists, you can deploy directly without creating it.
+
+If the account exists but has old code, redeploy:
+```bash
+near contract deploy ... without-init-call ...
+```
 
 ### Insufficient Balance
-Make sure the deployment account has enough NEAR for:
-- Contract deployment (~3-5 NEAR)
-- Storage costs
 
-### Wrong Network
-Ensure you're using `--network-id testnet` for testnet deployment.
-
-## Next Steps
-
-After deployment:
-
-1. **Register Solvers**: Solvers need to call `register_solver` with sufficient stake
-2. **Create Intents**: Users can create cross-chain intents via `create_intent`
-3. **Monitor**: Use `get_stats` and `get_intent` to monitor contract activity
-
-## Contract Methods
-
-See `contracts/README.md` for full documentation of all contract methods.
-
+Ensure the deployment account has enough NEAR:
+- Contract deployment: ~2-3 NEAR
+- Storage costs: ~0.1-0.5 NEAR

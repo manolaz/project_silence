@@ -1,9 +1,20 @@
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::store::{IterableMap, LookupMap, Vector};
+use near_sdk::collections::{UnorderedMap, LookupMap, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near, AccountId, Promise, NearToken, PanicOnDefault};
+use near_sdk::json_types::U128;
+use near_sdk::{env, near_bindgen, AccountId, Promise, PanicOnDefault, BorshStorageKey, NearToken};
 
-
+/// Storage keys for collections
+#[derive(BorshSerialize, BorshStorageKey)]
+#[borsh(crate = "near_sdk::borsh")]
+enum StorageKey {
+    Intents,
+    Solvers,
+    Matches,
+    ActiveSolvers,
+    IntentsByCreator,
+    IntentsBySolver,
+}
 
 /// Supported blockchain networks
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
@@ -20,14 +31,14 @@ pub enum Chain {
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum IntentStatus {
-    Created,       // Intent created, awaiting solver
-    Matched,       // Solver matched, preparing execution
-    Executing,     // Crosschain transfer in progress
-    Executed,      // Transfer completed on destination
-    Settling,      // Settlement in progress
-    Settled,       // Fully settled, rewards distributed
-    Failed,        // Execution failed
-    Disputed,      // Under dispute resolution
+    Created,
+    Matched,
+    Executing,
+    Executed,
+    Settling,
+    Settled,
+    Failed,
+    Disputed,
 }
 
 /// Crosschain transfer intent
@@ -86,54 +97,34 @@ pub struct IntentMatch {
 }
 
 /// Main contract
-#[near(contract_state)]
-#[derive(PanicOnDefault)]
+#[near_bindgen]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct SilenceBridgeRegistry {
-    /// All intents by intent_id
-    pub intents: IterableMap<String, Intent>,
-    
-    /// Registered solvers
-    pub solvers: IterableMap<AccountId, Solver>,
-    
-    /// Intent matches
-    pub matches: IterableMap<String, IntentMatch>,
-    
-    /// Active solvers list
+    pub intents: UnorderedMap<String, Intent>,
+    pub solvers: UnorderedMap<AccountId, Solver>,
+    pub matches: UnorderedMap<String, IntentMatch>,
     pub active_solvers: Vector<AccountId>,
-    
-    /// Intents by creator
     pub intents_by_creator: LookupMap<AccountId, Vec<String>>,
-    
-    /// Intents by solver
     pub intents_by_solver: LookupMap<AccountId, Vec<String>>,
-    
-    /// Contract owner
     pub owner: AccountId,
-    
-    /// Minimum solver stake
     pub min_solver_stake: u128,
-    
-    /// Protocol fee (basis points)
     pub protocol_fee_bps: u32,
-    
-    /// Total volume processed
     pub total_volume: u128,
 }
 
-
-
-#[near]
+#[near_bindgen]
 impl SilenceBridgeRegistry {
-    /// Initialize contract
     #[init]
-    pub fn new(owner: AccountId, min_solver_stake: u128, protocol_fee_bps: u32) -> Self {
+    pub fn new(owner: AccountId, min_solver_stake: U128, protocol_fee_bps: u32) -> Self {
+        let min_solver_stake: u128 = min_solver_stake.into();
         Self {
-            intents: IterableMap::new(b"i"),
-            solvers: IterableMap::new(b"s"),
-            matches: IterableMap::new(b"m"),
-            active_solvers: Vector::new(b"a"),
-            intents_by_creator: LookupMap::new(b"c"),
-            intents_by_solver: LookupMap::new(b"v"),
+            intents: UnorderedMap::new(StorageKey::Intents),
+            solvers: UnorderedMap::new(StorageKey::Solvers),
+            matches: UnorderedMap::new(StorageKey::Matches),
+            active_solvers: Vector::new(StorageKey::ActiveSolvers),
+            intents_by_creator: LookupMap::new(StorageKey::IntentsByCreator),
+            intents_by_solver: LookupMap::new(StorageKey::IntentsBySolver),
             owner,
             min_solver_stake,
             protocol_fee_bps,
@@ -141,7 +132,6 @@ impl SilenceBridgeRegistry {
         }
     }
 
-    /// Create a new crosschain intent
     #[payable]
     pub fn create_intent(
         &mut self,
@@ -157,7 +147,7 @@ impl SilenceBridgeRegistry {
         let source_amount = env::attached_deposit().as_yoctonear();
         
         assert!(source_amount > 0, "Must attach deposit");
-        assert!(!self.intents.get(&intent_id).is_some(), "Intent already exists");
+        assert!(self.intents.get(&intent_id).is_none(), "Intent already exists");
         
         let intent = Intent {
             intent_id: intent_id.clone(),
@@ -180,26 +170,24 @@ impl SilenceBridgeRegistry {
             privacy_proof: None,
         };
         
-        self.intents.insert(intent_id.clone(), intent.clone());
+        self.intents.insert(&intent_id, &intent);
         
-        // Track by creator
-        let mut creator_intents = self.intents_by_creator.get(&creator).cloned().unwrap_or_default();
+        let mut creator_intents = self.intents_by_creator.get(&creator).unwrap_or_default();
         creator_intents.push(intent_id.clone());
-        self.intents_by_creator.insert(creator.clone(), creator_intents);
+        self.intents_by_creator.insert(&creator, &creator_intents);
         
         env::log_str(&format!("Intent created: {}", intent_id));
         
         intent
     }
 
-    /// Register as a solver
     #[payable]
     pub fn register_solver(&mut self, supported_chains: Vec<Chain>) {
         let solver_id = env::predecessor_account_id();
         let stake = env::attached_deposit().as_yoctonear();
         
         assert!(stake >= self.min_solver_stake, "Insufficient stake");
-        assert!(!self.solvers.get(&solver_id).is_some(), "Solver already registered");
+        assert!(self.solvers.get(&solver_id).is_none(), "Solver already registered");
         assert!(!supported_chains.is_empty(), "Must support at least one chain");
         
         let solver = Solver {
@@ -215,13 +203,12 @@ impl SilenceBridgeRegistry {
             registered_at: env::block_timestamp(),
         };
         
-        self.solvers.insert(solver_id.clone(), solver);
-        self.active_solvers.push(solver_id.clone());
+        self.solvers.insert(&solver_id, &solver);
+        self.active_solvers.push(&solver_id);
         
         env::log_str(&format!("Solver registered: {}", solver_id));
     }
 
-    /// Match intent with solver
     pub fn match_intent(
         &mut self,
         intent_id: String,
@@ -230,34 +217,30 @@ impl SilenceBridgeRegistry {
     ) {
         let solver_id = env::predecessor_account_id();
         
-        let mut intent = self.intents.get(&intent_id).expect("Intent not found").clone();
-        let solver = self.solvers.get(&solver_id).expect("Solver not found").clone();
+        let mut intent = self.intents.get(&intent_id).expect("Intent not found");
+        let solver = self.solvers.get(&solver_id).expect("Solver not found");
         
         assert!(intent.status == IntentStatus::Created, "Intent already matched");
         assert!(solver.is_active, "Solver not active");
         assert!(env::block_timestamp() < intent.expires_at, "Intent expired");
         
-        // Verify solver supports required chains
         assert!(
             solver.supported_chains.contains(&intent.source_chain)
                 && solver.supported_chains.contains(&intent.destination_chain),
             "Solver doesn't support required chains"
         );
         
-        // Update intent
         intent.status = IntentStatus::Matched;
         intent.solver = Some(solver_id.clone());
-        self.intents.insert(intent_id.clone(), intent.clone());
+        self.intents.insert(&intent_id, &intent);
         
-        // Track by solver
-        let mut solver_intents = self.intents_by_solver.get(&solver_id).cloned().unwrap_or_default();
+        let mut solver_intents = self.intents_by_solver.get(&solver_id).unwrap_or_default();
         solver_intents.push(intent_id.clone());
-        self.intents_by_solver.insert(solver_id.clone(), solver_intents);
+        self.intents_by_solver.insert(&solver_id, &solver_intents);
         
         env::log_str(&format!("Intent {} matched with solver {}", intent_id, solver_id));
     }
 
-    /// Execute intent (called by solver after crosschain transfer)
     pub fn execute_intent(
         &mut self,
         intent_id: String,
@@ -266,7 +249,7 @@ impl SilenceBridgeRegistry {
     ) {
         let solver_id = env::predecessor_account_id();
         
-        let mut intent = self.intents.get(&intent_id).expect("Intent not found").clone();
+        let mut intent = self.intents.get(&intent_id).expect("Intent not found");
         
         assert_eq!(intent.solver, Some(solver_id.clone()), "Not the matched solver");
         assert!(intent.status == IntentStatus::Matched, "Invalid status");
@@ -276,117 +259,101 @@ impl SilenceBridgeRegistry {
         intent.destination_tx_hash = Some(destination_tx_hash);
         intent.privacy_proof = privacy_proof;
         
-        self.intents.insert(intent_id.clone(), intent.clone());
+        self.intents.insert(&intent_id, &intent);
         
         env::log_str(&format!("Intent {} executed by {}", intent_id, solver_id));
     }
 
-    /// Settle intent and distribute rewards
     pub fn settle_intent(&mut self, intent_id: String) {
-        let mut intent = self.intents.get(&intent_id).expect("Intent not found").clone();
+        let mut intent = self.intents.get(&intent_id).expect("Intent not found");
         
         assert!(intent.status == IntentStatus::Executed, "Not executed");
         
         let solver_id = intent.solver.clone().expect("No solver");
-        let mut solver = self.solvers.get(&solver_id).expect("Solver not found").clone();
+        let mut solver = self.solvers.get(&solver_id).expect("Solver not found");
         
-        // Calculate fees
         let protocol_fee = (intent.source_amount * self.protocol_fee_bps as u128) / 10000;
         let solver_reward = intent.source_amount - protocol_fee;
         
-        // Transfer to solver
-        let _ = Promise::new(solver_id.clone()).transfer(NearToken::from_yoctonear(solver_reward));
+        Promise::new(solver_id.clone()).transfer(NearToken::from_yoctonear(solver_reward));
+        Promise::new(self.owner.clone()).transfer(NearToken::from_yoctonear(protocol_fee));
         
-        // Transfer protocol fee to owner
-        let _ = Promise::new(self.owner.clone()).transfer(NearToken::from_yoctonear(protocol_fee));
-        
-        // Update solver stats
         solver.total_intents_executed += 1;
         solver.successful_intents += 1;
         solver.total_volume += intent.source_amount;
-        solver.reputation_score += 1; // Simple reputation increase
-        self.solvers.insert(solver_id.clone(), solver.clone());
+        solver.reputation_score += 1;
+        self.solvers.insert(&solver_id, &solver);
         
-        // Update intent
         intent.status = IntentStatus::Settled;
-        self.intents.insert(intent_id.clone(), intent.clone());
+        self.intents.insert(&intent_id, &intent);
         
-        // Update total volume
         self.total_volume += intent.source_amount;
         
         env::log_str(&format!("Intent {} settled", intent_id));
     }
 
-    /// Mark intent as failed
     pub fn fail_intent(&mut self, intent_id: String, reason: String) {
         let solver_id = env::predecessor_account_id();
         
-        let mut intent = self.intents.get(&intent_id).expect("Intent not found").clone();
+        let mut intent = self.intents.get(&intent_id).expect("Intent not found");
         
         assert_eq!(intent.solver, Some(solver_id.clone()), "Not the matched solver");
         
-        // Refund creator
-        let _ = Promise::new(intent.creator.clone()).transfer(NearToken::from_yoctonear(intent.source_amount));
+        Promise::new(intent.creator.clone()).transfer(NearToken::from_yoctonear(intent.source_amount));
         
-        // Update solver stats
-        let mut solver = self.solvers.get(&solver_id).expect("Solver not found").clone();
+        let mut solver = self.solvers.get(&solver_id).expect("Solver not found");
         solver.failed_intents += 1;
         solver.reputation_score = solver.reputation_score.saturating_sub(5);
-        self.solvers.insert(solver_id.clone(), solver.clone());
+        self.solvers.insert(&solver_id, &solver);
         
-        // Update intent
         intent.status = IntentStatus::Failed;
-        self.intents.insert(intent_id.clone(), intent.clone());
+        self.intents.insert(&intent_id, &intent);
         
         env::log_str(&format!("Intent {} failed: {}", intent_id, reason));
     }
 
     // View methods
 
-    /// Get intent by ID
     pub fn get_intent(&self, intent_id: String) -> Option<Intent> {
-        self.intents.get(&intent_id).cloned()
+        self.intents.get(&intent_id)
     }
 
-    /// Get intents by creator
     pub fn get_intents_by_creator(&self, creator: AccountId) -> Vec<Intent> {
         self.intents_by_creator
             .get(&creator)
-            .cloned()
             .unwrap_or_default()
             .iter()
-            .filter_map(|id| self.intents.get(id).cloned())
+            .filter_map(|id| self.intents.get(id))
             .collect()
     }
 
-    /// Get solver info
     pub fn get_solver(&self, solver_id: AccountId) -> Option<Solver> {
-        self.solvers.get(&solver_id).cloned()
+        self.solvers.get(&solver_id)
     }
 
-    /// Get active solvers
     pub fn get_active_solvers(&self, from_index: u64, limit: u64) -> Vec<Solver> {
         let start = from_index;
-        let end = std::cmp::min(from_index + limit, self.active_solvers.len() as u64);
+        let end = std::cmp::min(from_index + limit, self.active_solvers.len());
         
         (start..end)
             .filter_map(|i| {
-                let solver_id = self.active_solvers.get(i as u32)?;
-                self.solvers.get(solver_id).cloned()
+                let solver_id = self.active_solvers.get(i)?;
+                self.solvers.get(&solver_id)
             })
             .filter(|s| s.is_active)
             .collect()
     }
 
-    /// Get solvers supporting specific chains
     pub fn find_solvers_for_chains(
         &self,
         source_chain: Chain,
         destination_chain: Chain,
     ) -> Vec<Solver> {
-        self.active_solvers
-            .iter()
-            .filter_map(|solver_id| self.solvers.get(solver_id).cloned())
+        (0..self.active_solvers.len())
+            .filter_map(|i| {
+                let solver_id = self.active_solvers.get(i)?;
+                self.solvers.get(&solver_id)
+            })
             .filter(|s| {
                 s.is_active
                     && s.supported_chains.contains(&source_chain)
@@ -395,7 +362,6 @@ impl SilenceBridgeRegistry {
             .collect()
     }
 
-    /// Get contract stats
     pub fn get_stats(&self) -> serde_json::Value {
         serde_json::json!({
             "total_intents": self.intents.len(),
@@ -408,19 +374,17 @@ impl SilenceBridgeRegistry {
 
     // Admin methods
 
-    /// Update protocol fee
     pub fn set_protocol_fee(&mut self, fee_bps: u32) {
         assert_eq!(env::predecessor_account_id(), self.owner, "Only owner");
-        assert!(fee_bps <= 1000, "Fee too high"); // Max 10%
+        assert!(fee_bps <= 1000, "Fee too high");
         self.protocol_fee_bps = fee_bps;
     }
 
-    /// Deactivate solver
     pub fn deactivate_solver(&mut self, solver_id: AccountId) {
         assert_eq!(env::predecessor_account_id(), self.owner, "Only owner");
         
-        let mut solver = self.solvers.get(&solver_id).expect("Solver not found").clone();
+        let mut solver = self.solvers.get(&solver_id).expect("Solver not found");
         solver.is_active = false;
-        self.solvers.insert(solver_id.clone(), solver);
+        self.solvers.insert(&solver_id, &solver);
     }
 }
